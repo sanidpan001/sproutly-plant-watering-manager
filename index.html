@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en" id="top">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sproutly — Plant Watering Manager & Houseplant Care Calendar</title>
+<meta name="description" content="Sproutly builds a personal plant watering schedule for every plant in your collection. Add species, pot size, material, light and humidity to get transparent per-plant watering intervals, a unified care calendar, vacation mode, seasonal auto-shift, fertilizing and repotting reminders — free, forever.">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: { colors: { moss: '#0f1f16', fern: '#4ade80', sun: '#facc15' }, fontFamily: { display: ['Georgia','serif'] } } } };
+</script>
+<style>
+  body { background:#0f1f16; }
+  .glass { background:rgba(255,255,255,0.045); border:1px solid rgba(74,222,128,0.16); backdrop-filter: blur(6px); }
+  .chip { font-size:11px; padding:2px 10px; border-radius:999px; font-weight:600; letter-spacing:.02em; }
+  .btn-fern { background:#4ade80; color:#0f1f16; font-weight:700; border-radius:12px; transition:transform .15s ease, box-shadow .15s ease; }
+  .btn-fern:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(74,222,128,.35); }
+  .btn-ghost { border:1px solid rgba(74,222,128,.35); color:#4ade80; border-radius:12px; }
+  .btn-ghost:hover { background:rgba(74,222,128,.1); }
+  .field { background:#0a1710; border:1px solid rgba(74,222,128,.22); border-radius:10px; color:#e8f5ec; padding:9px 12px; width:100%; }
+  .field:focus { outline:none; border-color:#4ade80; box-shadow:0 0 0 2px rgba(74,222,128,.25); }
+  select.field option { background:#0f1f16; }
+  .cal-cell { min-height:74px; }
+  @media (max-width:480px){ .cal-cell{ min-height:56px; } }
+  .faq summary { cursor:pointer; font-weight:600; }
+  .faq summary::marker { color:#4ade80; }
+  .step-row { border-left:3px solid rgba(74,222,128,.35); }
+  .tab-active { background:#4ade80; color:#0f1f16; }
+  .tab-idle { border:1px solid rgba(74,222,128,.3); color:#d6f5df; }
+  details.faq { border:1px solid rgba(74,222,128,.18); border-radius:12px; }
+</style>
+</head>
+<body class="text-emerald-50 antialiased">
+
+<!-- sticky header -->
+<header class="sticky top-0 z-40 border-b border-emerald-900/60" style="background:rgba(15,31,22,.92); backdrop-filter:blur(8px);">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6 h-16 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2 font-display text-2xl font-bold text-fern">
+      <span class="inline-block w-8 h-8 rounded-full" style="background:radial-gradient(circle at 35% 30%, #4ade80, #166534);"></span>
+      Sproutly
+    </a>
+    <nav class="flex items-center gap-5 text-sm font-semibold">
+      <a href="#top" class="text-emerald-100 hover:text-fern">Home</a>
+      <a href="https://fixoraa.tech" class="text-emerald-100 hover:text-fern">More Tools</a>
+    </nav>
+  </div>
+</header>
+
+<!-- TOP AD -->
+<div class="no-print mx-auto max-w-6xl px-4 sm:px-6 pt-4" role="complementary" aria-label="Advertisement">
+  <div class="mx-auto text-center" style="max-width:728px">
+    <span class="block text-[10px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">Advertisement</span>
+    <div class="flex justify-center overflow-hidden">
+      <div class="origin-top scale-[0.44] sm:scale-100 shrink-0">
+        <script>
+          atOptions = { 'key' : '4e68ac77881c17fe128a46565d9a4e8c', 'format' : 'iframe', 'height' : 90, 'width' : 728, 'params' : {} };
+        </script>
+        <script src="https://www.highrevenueformat.com/4e68ac77881c17fe128a46565d9a4e8c/invoke.js"></script>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="mx-auto max-w-6xl px-4 sm:px-6 py-6">
+
+  <!-- hero -->
+  <section class="text-center mb-6">
+    <div class="inline-flex items-center gap-2 chip mb-4" style="background:rgba(250,204,21,.12); color:#facc15; border:1px solid rgba(250,204,21,.35);">
+      <span class="w-2 h-2 rounded-full bg-sun inline-block"></span> Unlimited Free Usage
+    </div>
+    <h1 class="font-display text-4xl sm:text-5xl font-bold text-fern mb-3">Your Whole Jungle, On One Watering Calendar</h1>
+    <p class="text-emerald-100/80 max-w-2xl mx-auto">Add every plant in your collection — Sproutly computes a transparent watering interval for each one and merges them into a single unified calendar with fertilizing and repotting reminders.</p>
+  </section>
+
+  <!-- TOOL -->
+  <section id="tool" class="glass rounded-2xl p-4 sm:p-6 mb-6">
+
+    <!-- Due today strip -->
+    <div id="due-strip" class="hidden mb-5 rounded-xl p-4" style="background:rgba(250,204,21,.08); border:1px solid rgba(250,204,21,.35);">
+      <h2 class="font-bold text-sun mb-2">Water today</h2>
+      <div id="due-list" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <!-- tabs -->
+    <div class="flex flex-wrap gap-2 mb-5">
+      <button id="tab-dashboard" class="tab-active px-4 py-2 rounded-xl font-semibold text-sm">Collection</button>
+      <button id="tab-calendar" class="tab-idle px-4 py-2 rounded-xl font-semibold text-sm">Calendar</button>
+      <button id="tab-vacation" class="tab-idle px-4 py-2 rounded-xl font-semibold text-sm">Vacation mode</button>
+      <button id="tab-settings" class="tab-idle px-4 py-2 rounded-xl font-semibold text-sm">Season</button>
+    </div>
+
+    <!-- DASHBOARD: add plant + plant cards -->
+    <div id="pane-dashboard">
+      <div class="grid md:grid-cols-5 gap-4 mb-6">
+        <input id="f-name" class="field md:col-span-1" placeholder="Plant nickname (e.g. Fernie)">
+        <select id="f-species" class="field md:col-span-1"></select>
+        <input id="f-last" type="date" class="field md:col-span-1">
+        <select id="f-potmaterial" class="field md:col-span-1">
+          <option value="terracotta">Terracotta</option>
+          <option value="ceramic">Ceramic</option>
+          <option value="plastic" selected>Plastic</option>
+          <option value="glass">Glass (no drainage)</option>
+          <option value="selfwatering">Self-watering pot</option>
+        </select>
+        <div class="flex gap-2 md:col-span-1">
+          <input id="f-potsize" type="number" min="6" max="60" value="15" class="field" placeholder="Pot cm">
+        </div>
+        <select id="f-light" class="field">
+          <option value="low">Low light</option>
+          <option value="medium" selected>Bright indirect</option>
+          <option value="direct">Direct sun</option>
+        </select>
+        <select id="f-humidity" class="field">
+          <option value="dry">Dry air (&lt;40%)</option>
+          <option value="normal" selected>Normal (40–60%)</option>
+          <option value="humid">Humid (&gt;60%)</option>
+        </select>
+        <button id="btn-add" class="btn-fern px-4 py-2.5 md:col-span-2">+ Add plant</button>
+        <button id="btn-demo" class="btn-ghost px-4 py-2.5 md:col-span-1 text-sm">Load demo collection</button>
+      </div>
+      <div id="plant-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- CALENDAR pane -->
+    <div id="pane-calendar" class="hidden">
+      <div class="flex items-center justify-between mb-4">
+        <button id="cal-prev" class="btn-ghost px-3 py-1.5 text-sm">← Prev</button>
+        <h3 id="cal-title" class="font-display text-xl font-bold text-fern"></h3>
+        <button id="cal-next" class="btn-ghost px-3 py-1.5 text-sm">Next →</button>
+      </div>
+      <div class="grid grid-cols-7 gap-1 text-center text-xs font-bold text-sun mb-1">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+      <div id="cal-grid" class="grid grid-cols-7 gap-1"></div>
+      <div class="flex flex-wrap gap-4 mt-3 text-xs text-emerald-100/80">
+        <span><span class="inline-block w-3 h-3 rounded-full bg-fern mr-1"></span>Water</span>
+        <span><span class="inline-block w-3 h-3 rounded-full bg-sun mr-1"></span>Fertilize</span>
+        <span><span class="inline-block w-3 h-3 rounded-full bg-red-400 mr-1"></span>Repot</span>
+        <span class="ml-auto">✈️ = falls inside vacation</span>
+      </div>
+      <div id="cal-day-detail" class="mt-4 text-sm"></div>
+    </div>
+
+    <!-- VACATION pane -->
+    <div id="pane-vacation" class="hidden">
+      <div class="grid sm:grid-cols-4 gap-3 mb-4 items-end">
+        <div><label class="text-xs text-emerald-100/70">Trip start</label><input id="v-from" type="date" class="field"></div>
+        <div><label class="text-xs text-emerald-100/70">Trip end</label><input id="v-to" type="date" class="field"></div>
+        <label class="flex items-center gap-2 text-sm sm:col-span-1"><input id="v-sitter" type="checkbox" class="w-4 h-4 accent-[#4ade80]"> Sitter available</label>
+        <button id="btn-vacation-clear" class="btn-ghost px-4 py-2 text-sm">Clear vacation</button>
+      </div>
+      <div id="vacation-result" class="space-y-3"></div>
+    </div>
+
+    <!-- SEASON pane -->
+    <div id="pane-settings" class="hidden">
+      <div class="flex flex-wrap items-center gap-3 mb-3">
+        <label class="text-sm font-semibold">Season (drives seasonal auto-shift):</label>
+        <select id="f-season" class="field" style="width:auto;">
+          <option value="auto" selected>Auto (from current month)</option>
+          <option value="spring">Spring</option>
+          <option value="summer">Summer</option>
+          <option value="autumn">Autumn</option>
+          <option value="winter">Winter</option>
+        </select>
+      </div>
+      <p class="text-sm text-emerald-100/75 max-w-2xl">Sproutly multiplies every plant's interval by a seasonal factor: summer <b class="text-fern">0.90×</b> (dries faster), autumn <b class="text-fern">1.15×</b>, winter <b class="text-fern">1.40×</b> (dormancy — much less water), spring <b class="text-fern">1.00×</b>. Override manually any time; the calendar re-renders instantly.</p>
+    </div>
+  </section>
+
+  <!-- transparent formula panel -->
+  <section id="formula-panel" class="glass rounded-2xl p-4 sm:p-6 mb-6 hidden">
+    <h2 class="font-display text-2xl font-bold text-fern mb-1">How the interval is computed</h2>
+    <p id="formula-plant-name" class="text-sm text-sun mb-3"></p>
+    <div id="formula-steps" class="space-y-2 mb-3"></div>
+    <p class="text-xs text-emerald-100/60">Formula: species baseline × pot-material factor × pot-size factor × light factor × humidity factor × season factor, rounded to whole days. No black box — every factor is listed above.</p>
+  </section>
+
+  <!-- BOTTOM AD -->
+  <div class="no-print mx-auto max-w-6xl px-4 sm:px-6 pb-4" role="complementary" aria-label="Advertisement">
+    <div class="mx-auto text-center" style="max-width:728px">
+      <span class="block text-[10px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">Advertisement</span>
+      <div class="flex justify-center overflow-hidden">
+        <script async src="https://js.wpadmngr.com/static/adManager.js" data-admpid="464498"></script>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEO ARTICLE -->
+  <article class="prose-stone max-w-none text-emerald-50/90 leading-relaxed space-y-5 mt-6" id="article">
+    <h2 class="font-display text-3xl font-bold text-fern">How Often to Water Indoor Plants: The Complete Guide</h2>
+
+    <p>Every plant parent has asked the same question at least once: <em>how often to water indoor plants?</em> The frustrating truth is that there is no single answer. A snake plant in a terracotta pot on a sunny sill might thrive on water every three weeks, while a Boston fern in a plastic pot across the room wants a drink every four days. The difference is not luck — it is physics, and once you understand the variables, you can build a reliable <strong>plant watering schedule</strong> for every green thing you own.</p>
+
+    <p>Most generic advice fails because it treats watering as a calendar ritual ("water every Sunday") instead of a response to how fast soil dries. Soil dries faster when the pot is porous, when the light is bright, when the air is dry, and when the plant is actively growing. It dries slower in a glazed pot, in a dim corner, in humid air, and during winter dormancy. A good <strong>houseplant care calendar</strong> must weigh all of these factors per plant — which is exactly what a tool like the Sproutly manager above does with a fully transparent formula.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">Start With the Species Baseline</h3>
+
+    <p>Different species evolved in wildly different environments, so each has a characteristic thirst level. Desert natives like cacti and aloe vera store water in their tissues and prefer a long drought between drinks — a base interval of around three weeks is normal. Tropical plants like calatheas and ferns come from rainforest floors where the soil is never truly dry; they want water roughly twice a week. Most popular houseplants — pothos, philodendrons, monsteras, spider plants — sit in the middle at about once a week under reference conditions.</p>
+
+    <p>The key phrase is "under reference conditions." A baseline only applies to a medium plastic pot in bright indirect light at normal humidity in spring. Change any of those, and the interval shifts. This is why two identical pothos in different rooms can need completely different schedules — the species is the starting point, not the finish line.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">Pot Material Changes Everything</h3>
+
+    <p>The pot is the single most underestimated variable in watering. Terracotta is porous: water evaporates through the clay walls, so soil in a terracotta pot can dry up to 25% faster than the same soil in plastic. That is great for succulents and cacti, which hate wet feet, but it means a thirsty fern in terracotta needs constant attention. Glazed ceramic sits between the two — it breathes slightly but far less than raw clay. Plastic is the neutral reference: it holds moisture predictably and makes scheduling easy. Glass pots and closed terrariums have no drainage at all, so water lingers and intervals stretch longer — but they also demand careful dosing, since excess water has nowhere to go. Self-watering pots with reservoirs extend intervals dramatically, sometimes doubling them, though they are poor choices for drought-lovers that need a dry cycle.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">Pot Size, Light, and Humidity</h3>
+
+    <p>Small pots dry fast. A 9cm nursery pot can be bone-dry in two days while the same plant in a 25cm pot stays damp for two weeks — there is simply more soil volume buffering the moisture. As a rough rule, doubling pot diameter nearly doubles the watering interval. Light is the engine of evaporation and growth: plants in direct sun use water much faster than the same plants in a dim hallway. Moving a monstera from a north-facing room to a sunny window can legitimately shorten its interval by 20–30%. Humidity matters too. In air-conditioned or heated rooms where relative humidity drops below 40%, soil surface evaporation accelerates; in steamy bathrooms or kitchens, it slows. Grouping plants together raises local humidity — the classic "plant huddle" trick — and can stretch intervals slightly.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">Seasonal Shifts: Why Winter Means Less Water</h3>
+
+    <p>Most houseplants follow the sun's calendar even indoors. Growth slows dramatically from late autumn through winter: shorter days, weaker light, and cooler temperatures all reduce transpiration. Watering on a summer schedule through winter is the most common cause of root rot — the soil stays wet while the plant sips slowly, and anaerobic conditions set in. The fix is a seasonal auto-shift: reduce watering frequency by roughly 30–40% in winter for most plants, and up to 60–70% for true dormancy species like cacti and many succulents, which may need almost no water at all from November to February. Conversely, summer heat can shorten intervals by about 10%. A care calendar that ignores seasons will systematically overwater in December and underwater in July.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">How to Water: Technique Beats Schedule</h3>
+
+    <p>Even a perfect schedule fails with bad technique. The golden rule: water thoroughly and then let the soil dry appropriately — never little sips every day. Drench until water flows from the drainage holes, wait a few minutes, then empty the saucer. This flushes accumulated salts and encourages deep root growth. The finger test remains the best low-tech sensor: push a finger 3cm into the soil; if it is dry, water; if damp, wait. For larger pots, a cheap wooden skewer works as a dipstick — pull it out and check whether the buried end is damp. Lifting the pot is another skill worth building: a freshly watered pot is noticeably heavier than a dry one, and experienced growers can judge moisture by weight alone.</p>
+
+    <p>Water quality deserves a mention. Most tap water is fine, but plants sensitive to chemicals — calatheas, spider plants, dracaenas — can develop brown leaf tips from fluoride and chlorine. Letting water sit overnight dissipates chlorine (not chloramine), and rainwater or filtered water is the gold standard for fussy species. Room-temperature water avoids shocking roots; cold water straight from the tap in winter is a genuine stressor.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">Fertilizing: Feed the Growth, Not the Calendar</h3>
+
+    <p>Water keeps plants alive; fertilizer helps them thrive. The rule of thumb is to fertilize only during active growth (spring and summer), roughly every 4–8 weeks depending on species, and to stop entirely in winter when growth stalls. Over-fertilizing is worse than under-fertilizing — excess salts burn roots and show up as crispy brown leaf margins. A balanced liquid houseplant fertilizer at half the label strength, applied to already-moist soil, is the safest approach for beginners. Slow growers like ZZ plants and snake plants need feeding only a few times a year; hungry feeders like monsteras and fiddle leaf figs appreciate a monthly dose in season. If you notice white crust on the soil surface, flush the pot thoroughly and skip the next feeding.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">Repotting: When and Why</h3>
+
+    <p>Repotting is not an annual chore — most houseplants prefer being slightly root-bound and only need a new pot every 18–36 months. The signals are unmistakable: roots circling the drainage holes, water running straight through without absorbing, soil drying dramatically faster than it used to, or the plant becoming top-heavy and unstable. Spring is the ideal repotting season because the plant is entering its growth phase and recovers fastest. Go only one size up (about 3–5cm larger in diameter); jumping to a huge pot leaves excess wet soil around small roots, inviting rot. Refresh the potting mix at the same time — old mix compacts, loses aeration, and accumulates salts over the years.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">Vacation-Proofing Your Collection</h3>
+
+    <p>Nothing ruins a holiday like coming home to a crispy fern. For trips up to a week, most medium-thirst plants survive if watered deeply the morning you leave and moved slightly away from direct sun to slow evaporation. For longer absences, options scale with collection size: a trusted plant sitter with a written schedule (this is where a unified calendar shines — print it or share screenshots), self-watering spikes or wick systems for individual pots, grouping plants in the bathtub on damp towels for humidity lovers, or simply accepting that succulents and snake plants will be fine for three weeks untouched. Always do a test run of any automated system a week before departure — discovering a clogged spike on day one of your trip helps nobody.</p>
+
+    <h3 class="font-display text-2xl font-bold text-fern pt-2">Building Your Personal Houseplant Care Calendar</h3>
+
+    <p>The most reliable system combines a computed starting schedule with ongoing observation. Begin with per-plant intervals derived from species, pot, light, humidity, and season — exactly the transparent formula Sproutly shows for each plant. Mark actual watering dates on the unified calendar, then adjust: if the soil is still damp on watering day, stretch the interval by a day or two; if the plant droops the day before, shorten it. Within a month or two, your calendar converges on reality. Keep fertilizing and repotting reminders on the same calendar so nothing slips — a plant that is watered perfectly but never fed will slowly fade, and one that is never repotted will eventually strangle itself in its own roots. The goal is not perfection; it is a rhythm that keeps every plant in your collection consistently, boringly healthy.</p>
+  </article>
+
+  <!-- FAQs -->
+  <section class="mt-10 mb-6">
+    <h2 class="font-display text-3xl font-bold text-fern mb-5">Frequently Asked Questions</h2>
+    <div class="space-y-3">
+      <details class="faq glass p-4">
+        <summary class="text-emerald-50">How often should I water my indoor plants in general?</summary>
+        <p class="mt-2 text-sm text-emerald-100/80">There is no universal frequency — it depends on species, pot material and size, light, humidity, and season. As rough starting points: succulents and cacti every 2–4 weeks, snake plants and ZZ plants every 2 weeks, pothos and philodendrons weekly, ferns and calatheas every 4–6 days. Always check soil moisture with the finger test rather than watering blindly on a fixed day.</p>
+      </details>
+      <details class="faq glass p-4">
+        <summary class="text-emerald-50">Should I water less in winter?</summary>
+        <p class="mt-2 text-sm text-emerald-100/80">Yes — almost always. Shorter days and cooler temperatures slow growth and evaporation, so most houseplants need 30–40% less water in winter. Cacti and succulents may need almost none during dormancy. Continuing a summer schedule through winter is the most common cause of root rot.</p>
+      </details>
+      <details class="faq glass p-4">
+        <summary class="text-emerald-50">Does terracotta really dry out faster than plastic?</summary>
+        <p class="mt-2 text-sm text-emerald-100/80">Yes. Terracotta is porous, so moisture evaporates through the pot walls and soil dries roughly 25% faster than in a plastic pot of the same size. That makes terracotta ideal for succulents and cacti but demanding for thirsty plants like ferns. Glazed ceramic falls in between, and self-watering pots extend intervals significantly.</p>
+      </details>
+      <details class="faq glass p-4">
+        <summary class="text-emerald-50">How do I keep my plants alive while on vacation?</summary>
+        <p class="mt-2 text-sm text-emerald-100/80">Water deeply before leaving and move plants out of direct sun. For trips under a week, most plants cope fine. For longer trips, use a sitter with a written watering schedule, self-watering spikes, or a pebble-tray humidity setup for tropicals. Drought-tolerant plants like snake plants and ZZ plants can easily survive two to three weeks alone.</p>
+      </details>
+      <details class="faq glass p-4">
+        <summary class="text-emerald-50">When should I fertilize and repot my houseplants?</summary>
+        <p class="mt-2 text-sm text-emerald-100/80">Fertilize during the growing season (spring and summer) every 4–8 weeks depending on species, and stop in winter. Repot every 18–36 months or when roots circle the drainage holes, water runs straight through, or growth stalls — spring is the best season, moving up just one pot size.</p>
+      </details>
+      <details class="faq glass p-4">
+        <summary class="text-emerald-50">Is a fixed weekly watering schedule a good idea?</summary>
+        <p class="mt-2 text-sm text-emerald-100/80">A fixed schedule is a decent starting point but a poor long-term system, because drying speed changes with seasons, weather, and plant growth. A better approach is a per-plant computed interval that shifts with the season, checked against actual soil moisture. That is exactly what a plant watering schedule tool with a unified calendar gives you: structure plus flexibility.</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer class="border-t border-emerald-900/60 py-6 text-center text-xs text-emerald-100/50">
+  <p>Sproutly — a free plant watering schedule companion for every houseplant lover.</p>
+</footer>
+
+<script id="v3-sproutly-plant-watering-manager-lib">
+/* Sproutly plant-watering engine — pure functions only. No DOM access. */
+'use strict';
+
+/* Base watering intervals (days between waterings, at reference conditions:
+   15cm plastic pot, bright-indirect light, 50% humidity, spring). */
+var SPROUTLY_SPECIES = {
+  'Snake Plant':        { baseDays: 14, waterNeed: 'low',    fertilizeWeeks: 6,  repotMonths: 36, note: 'Very drought tolerant' },
+  'ZZ Plant':           { baseDays: 14, waterNeed: 'low',    fertilizeWeeks: 8,  repotMonths: 36, note: 'Stores water in rhizomes' },
+  'Pothos':             { baseDays: 7,  waterNeed: 'medium', fertilizeWeeks: 4,  repotMonths: 18, note: 'Water when top 3cm dry' },
+  'Philodendron':       { baseDays: 7,  waterNeed: 'medium', fertilizeWeeks: 4,  repotMonths: 18, note: 'Like pothos, forgiving' },
+  'Spider Plant':       { baseDays: 7,  waterNeed: 'medium', fertilizeWeeks: 4,  repotMonths: 18, note: 'Thrives on neglect-lite' },
+  'Peace Lily':         { baseDays: 7,  waterNeed: 'medium', fertilizeWeeks: 4,  repotMonths: 18, note: 'Droops dramatically when thirsty' },
+  'Monstera':           { baseDays: 9,  waterNeed: 'medium', fertilizeWeeks: 4,  repotMonths: 24, note: 'Chunky soil, thorough soak' },
+  'Rubber Plant':       { baseDays: 9,  waterNeed: 'medium', fertilizeWeeks: 6,  repotMonths: 24, note: 'Let top soil dry between' },
+  'Fiddle Leaf Fig':    { baseDays: 10, waterNeed: 'medium', fertilizeWeeks: 4,  repotMonths: 24, note: 'Likes consistency, hates moves' },
+  'Calathea':           { baseDays: 6,  waterNeed: 'high',   fertilizeWeeks: 6,  repotMonths: 24, note: 'Keep evenly moist, humid air' },
+  'Boston Fern':        { baseDays: 4,  waterNeed: 'high',   fertilizeWeeks: 4,  repotMonths: 18, note: 'Thirsty; mist often' },
+  'Aloe Vera':          { baseDays: 18, waterNeed: 'low',    fertilizeWeeks: 8,  repotMonths: 24, note: 'Succulent — soak then fully dry' },
+  'Succulent (Echeveria)': { baseDays: 18, waterNeed: 'low', fertilizeWeeks: 8,  repotMonths: 24, note: 'Drown-the-drought cycle' },
+  'Cactus':             { baseDays: 25, waterNeed: 'low',    fertilizeWeeks: 10, repotMonths: 36, note: 'Dormant in winter: barely water' }
+};
+
+var SPROUTLY_POT_MATERIAL_FACTOR = {
+  terracotta: 0.75,  /* porous: soil dries faster -> shorter interval */
+  ceramic:    0.90,
+  plastic:    1.00,  /* reference */
+  glass:      1.15,  /* no drainage: water lasts longer */
+  selfwatering: 1.35
+};
+
+var SPROUTLY_LIGHT_FACTOR = {
+  low:      1.30,  /* dim room: slow evaporation -> longer interval */
+  medium:   1.00,  /* bright indirect: reference */
+  direct:   0.80   /* direct sun: dries faster -> shorter interval */
+};
+
+var SPROUTLY_HUMIDITY_FACTOR = {
+  dry:     0.85,  /* <40% : soil dries faster */
+  normal:  1.00,  /* 40-60% : reference */
+  humid:   1.20   /* >60% : slower drying */
+};
+
+var SPROUTLY_SEASON_FACTOR = {
+  spring: 1.00,
+  summer: 0.90,  /* heat -> drink more */
+  autumn: 1.15,
+  winter: 1.40   /* dormancy -> water much less often */
+};
+
+function sproutlyClamp(n, lo, hi) {
+  n = Number(n);
+  if (!isFinite(n)) return lo;
+  if (n < lo) return lo;
+  if (n > hi) return hi;
+  return n;
+}
+
+function sproutlyGetSpecies(name) {
+  return SPROUTLY_SPECIES[name] || { baseDays: 8, waterNeed: 'medium', fertilizeWeeks: 6, repotMonths: 24, note: 'General houseplant default' };
+}
+
+/* potSizeCm: pot diameter in cm. Small pots dry faster (shorter interval),
+   big pots hold moisture (longer interval). Reference: 15cm -> 1.00 */
+function sproutlyPotSizeFactor(potSizeCm) {
+  var s = sproutlyClamp(potSizeCm, 6, 60);
+  return sproutlyClamp(s / 15, 0.55, 1.60);
+}
+
+/* Transparent interval computation. Returns { days, steps } where steps is
+   an array of { label, factor } so the UI can show the exact formula. */
+function sproutlyComputeInterval(plant) {
+  var sp = sproutlyGetSpecies(plant.species);
+  var steps = [];
+  var days = sp.baseDays;
+  steps.push({ label: 'Species baseline (' + plant.species + ')', factor: 1, subtotal: days });
+
+  var mat = (plant.potMaterial || 'plastic');
+  var mf = SPROUTLY_POT_MATERIAL_FACTOR.hasOwnProperty(mat) ? SPROUTLY_POT_MATERIAL_FACTOR[mat] : 1.00;
+  days *= mf;
+  steps.push({ label: 'Pot material: ' + mat, factor: mf, subtotal: days });
+
+  var sf = sproutlyPotSizeFactor(Number(plant.potSizeCm) || 15);
+  days *= sf;
+  steps.push({ label: 'Pot size: ' + (plant.potSizeCm || 15) + 'cm diameter', factor: Math.round(sf * 100) / 100, subtotal: days });
+
+  var lt = (plant.light || 'medium');
+  var lf = SPROUTLY_LIGHT_FACTOR.hasOwnProperty(lt) ? SPROUTLY_LIGHT_FACTOR[lt] : 1.00;
+  days *= lf;
+  steps.push({ label: 'Light: ' + lt, factor: lf, subtotal: days });
+
+  var hu = (plant.humidity || 'normal');
+  var hf = SPROUTLY_HUMIDITY_FACTOR.hasOwnProperty(hu) ? SPROUTLY_HUMIDITY_FACTOR[hu] : 1.00;
+  days *= hf;
+  steps.push({ label: 'Humidity: ' + hu, factor: hf, subtotal: days });
+
+  var se = (plant.season || 'spring');
+  var sfac = SPROUTLY_SEASON_FACTOR.hasOwnProperty(se) ? SPROUTLY_SEASON_FACTOR[se] : 1.00;
+  days *= sfac;
+  steps.push({ label: 'Season: ' + se + ' (auto-shift)', factor: sfac, subtotal: days });
+
+  days = Math.max(1, Math.round(days));
+  return { days: days, steps: steps, note: sp.note };
+}
+
+/* --- date helpers (pure, ISO yyyy-mm-dd) --- */
+function sproutlyParseISO(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+  if (!m) return null;
+  var d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  if (isNaN(d.getTime())) return null;
+  return d;
+}
+function sproutlyToISO(d) {
+  return d.getUTCFullYear() + '-' +
+    String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getUTCDate()).padStart(2, '0');
+}
+function sproutlyAddDays(iso, n) {
+  var d = sproutlyParseISO(iso);
+  if (!d) return null;
+  d.setUTCDate(d.getUTCDate() + n);
+  return sproutlyToISO(d);
+}
+function sproutlyDiffDays(isoA, isoB) {
+  var a = sproutlyParseISO(isoA), b = sproutlyParseISO(isoB);
+  if (!a || !b) return null;
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
+/* Next watering dates for one plant: repeat the interval `count` times. */
+function sproutlyNextWaterings(plant, startISO, count) {
+  var info = sproutlyComputeInterval(plant);
+  var out = [];
+  var d = sproutlyAddDays(startISO, info.days);
+  for (var i = 0; i < (count || 6) && d; i++) {
+    out.push(d);
+    d = sproutlyAddDays(d, info.days);
+  }
+  return { intervalDays: info.days, dates: out };
+}
+
+/* Unified calendar: month view. Returns { cells: [...], events: {iso: [{plant, type}] } }
+   monthISO: 'yyyy-mm' */
+function sproutlyMonthCalendar(plants, monthISO, opts) {
+  opts = opts || {};
+  var m = /^(\d{4})-(\d{2})$/.exec(String(monthISO));
+  if (!m) return { cells: [], events: {}, error: 'bad-month' };
+  var year = Number(m[1]), mon = Number(m[2]) - 1;
+  var first = new Date(Date.UTC(year, mon, 1));
+  var startDow = first.getUTCDay(); /* 0 = Sunday */
+  var daysInMonth = new Date(Date.UTC(year, mon + 1, 0)).getUTCDate();
+  var prevDays = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+
+  var cells = [];
+  var leading = startDow;
+  for (var i = leading - 1; i >= 0; i--) {
+    cells.push({ iso: sproutlyToISO(new Date(Date.UTC(year, mon - 1, prevDays - i))), inMonth: false });
+  }
+  for (var d = 1; d <= daysInMonth; d++) {
+    cells.push({ iso: sproutlyToISO(new Date(Date.UTC(year, mon, d))), inMonth: true });
+  }
+  var trailing = (7 - ((leading + daysInMonth) % 7)) % 7;
+  for (var t = 1; t <= trailing; t++) {
+    cells.push({ iso: sproutlyToISO(new Date(Date.UTC(year, mon, daysInMonth + t))), inMonth: false });
+  }
+
+  var events = {};
+  function addEvent(iso, ev) {
+    if (!iso) return;
+    if (!events[iso]) events[iso] = [];
+    events[iso].push(ev);
+  }
+
+  var season = opts.season || 'spring';
+  var vacation = opts.vacation || null; /* { from, to, sitter: bool } */
+
+  plants.forEach(function (p, idx) {
+    var plant = Object.assign({}, p, { season: season });
+    var info = sproutlyComputeInterval(plant);
+    var cursor = sproutlyAddDays(plant.lastWateredISO, 0); /* clone */
+    /* walk watering dates across the whole month range */
+    var rangeStart = cells[0].iso, rangeEnd = cells[cells.length - 1].iso;
+    var dISO = sproutlyAddDays(plant.lastWateredISO, info.days);
+    var guard = 0;
+    while (dISO && sproutlyDiffDays(rangeStart, dISO) >= 0 && sproutlyDiffDays(dISO, rangeEnd) >= 0 && guard < 200) {
+      var ev = { plant: p.name || ('Plant ' + (idx + 1)), type: 'water', intervalDays: info.days };
+      if (vacation && sproutlyDiffDays(vacation.from, dISO) >= 0 && sproutlyDiffDays(dISO, vacation.to) >= 0) {
+        ev.vacation = true;
+        ev.sitter = !!vacation.sitter;
+      }
+      addEvent(dISO, ev);
+      dISO = sproutlyAddDays(dISO, info.days);
+      guard++;
+    }
+    /* fertilizing reminders */
+    var sp = sproutlyGetSpecies(p.species);
+    var fertDays = sp.fertilizeWeeks * 7;
+    var fISO = sproutlyAddDays(plant.lastWateredISO, fertDays);
+    guard = 0;
+    while (fISO && sproutlyDiffDays(rangeStart, fISO) >= 0 && sproutlyDiffDays(fISO, rangeEnd) >= 0 && guard < 40) {
+      addEvent(fISO, { plant: p.name || ('Plant ' + (idx + 1)), type: 'fertilize' });
+      fISO = sproutlyAddDays(fISO, fertDays);
+      guard++;
+    }
+    /* repotting reminders (first day of the month containing the anniversary) */
+    var repotISO = sproutlyAddDays(plant.lastWateredISO, sp.repotMonths * 30);
+    if (repotISO && sproutlyDiffDays(rangeStart, repotISO) >= 0 && sproutlyDiffDays(repotISO, rangeEnd) >= 0) {
+      addEvent(repotISO, { plant: p.name || ('Plant ' + (idx + 1)), type: 'repot' });
+    }
+  });
+
+  return { cells: cells, events: events, error: null };
+}
+
+/* Today's action list: everything due on or before today. */
+function sproutlyDueToday(plants, todayISO, season) {
+  var due = [];
+  plants.forEach(function (p, idx) {
+    var plant = Object.assign({}, p, { season: season || 'spring' });
+    var info = sproutlyComputeInterval(plant);
+    var next = sproutlyAddDays(p.lastWateredISO, info.days);
+    var name = p.name || ('Plant ' + (idx + 1));
+    if (next && sproutlyDiffDays(next, todayISO) >= 0) {
+      var late = sproutlyDiffDays(next, todayISO);
+      due.push({ plant: name, type: 'water', nextISO: next, overdueDays: late, intervalDays: info.days });
+    }
+  });
+  return due.sort(function (a, b) { return b.overdueDays - a.overdueDays; });
+}
+
+function sproutlySeasonForMonth(monthNumber) {
+  var m = Number(monthNumber);
+  if (m === 12 || m <= 2) return 'winter';
+  if (m >= 3 && m <= 5) return 'spring';
+  if (m >= 6 && m <= 8) return 'summer';
+  return 'autumn';
+}
+
+/* Vacation impact: plants that will need watering during the trip. */
+function sproutlyVacationCheck(plants, vacation, season) {
+  var out = [];
+  plants.forEach(function (p, idx) {
+    var plant = Object.assign({}, p, { season: season || 'spring' });
+    var info = sproutlyComputeInterval(plant);
+    var dISO = sproutlyAddDays(p.lastWateredISO, info.days);
+    var dates = [], guard = 0;
+    while (dISO && sproutlyDiffDays(vacation.from, dISO) >= 0 && sproutlyDiffDays(dISO, vacation.to) >= 0 && guard < 30) {
+      dates.push(dISO);
+      dISO = sproutlyAddDays(dISO, info.days);
+      guard++;
+    }
+    out.push({ plant: p.name || ('Plant ' + (idx + 1)), intervalDays: info.days, datesDuringTrip: dates });
+  });
+  return out;
+}
+
+/* Export for Node tests */
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    SPROUTLY_SPECIES: SPROUTLY_SPECIES,
+    SPROUTLY_POT_MATERIAL_FACTOR: SPROUTLY_POT_MATERIAL_FACTOR,
+    SPROUTLY_LIGHT_FACTOR: SPROUTLY_LIGHT_FACTOR,
+    SPROUTLY_HUMIDITY_FACTOR: SPROUTLY_HUMIDITY_FACTOR,
+    SPROUTLY_SEASON_FACTOR: SPROUTLY_SEASON_FACTOR,
+    sproutlyClamp: sproutlyClamp,
+    sproutlyGetSpecies: sproutlyGetSpecies,
+    sproutlyPotSizeFactor: sproutlyPotSizeFactor,
+    sproutlyComputeInterval: sproutlyComputeInterval,
+    sproutlyParseISO: sproutlyParseISO,
+    sproutlyToISO: sproutlyToISO,
+    sproutlyAddDays: sproutlyAddDays,
+    sproutlyDiffDays: sproutlyDiffDays,
+    sproutlyNextWaterings: sproutlyNextWaterings,
+    sproutlyMonthCalendar: sproutlyMonthCalendar,
+    sproutlyDueToday: sproutlyDueToday,
+    sproutlySeasonForMonth: sproutlySeasonForMonth,
+    sproutlyVacationCheck: sproutlyVacationCheck
+  };
+}
+
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "How often should I water my indoor plants in general?", "acceptedAnswer": { "@type": "Answer", "text": "There is no universal frequency — it depends on species, pot material and size, light, humidity, and season. As rough starting points: succulents and cacti every 2–4 weeks, snake plants and ZZ plants every 2 weeks, pothos and philodendrons weekly, ferns and calatheas every 4–6 days. Always check soil moisture with the finger test rather than watering blindly on a fixed day." } },
+    { "@type": "Question", "name": "Should I water less in winter?", "acceptedAnswer": { "@type": "Answer", "text": "Yes — almost always. Shorter days and cooler temperatures slow growth and evaporation, so most houseplants need 30–40% less water in winter. Cacti and succulents may need almost none during dormancy. Continuing a summer schedule through winter is the most common cause of root rot." } },
+    { "@type": "Question", "name": "Does terracotta really dry out faster than plastic?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Terracotta is porous, so moisture evaporates through the pot walls and soil dries roughly 25% faster than in a plastic pot of the same size. That makes terracotta ideal for succulents and cacti but demanding for thirsty plants like ferns. Glazed ceramic falls in between, and self-watering pots extend intervals significantly." } },
+    { "@type": "Question", "name": "How do I keep my plants alive while on vacation?", "acceptedAnswer": { "@type": "Answer", "text": "Water deeply before leaving and move plants out of direct sun. For trips under a week, most plants cope fine. For longer trips, use a sitter with a written watering schedule, self-watering spikes, or a pebble-tray humidity setup for tropicals. Drought-tolerant plants like snake plants and ZZ plants can easily survive two to three weeks alone." } },
+    { "@type": "Question", "name": "When should I fertilize and repot my houseplants?", "acceptedAnswer": { "@type": "Answer", "text": "Fertilize during the growing season (spring and summer) every 4–8 weeks depending on species, and stop in winter. Repot every 18–36 months or when roots circle the drainage holes, water runs straight through, or growth stalls — spring is the best season, moving up just one pot size." } },
+    { "@type": "Question", "name": "Is a fixed weekly watering schedule a good idea?", "acceptedAnswer": { "@type": "Answer", "text": "A fixed schedule is a decent starting point but a poor long-term system, because drying speed changes with seasons, weather, and plant growth. A better approach is a per-plant computed interval that shifts with the season, checked against actual soil moisture. That is exactly what a plant watering schedule tool with a unified calendar gives you: structure plus flexibility." } }
+  ]
+}
+</script>
+
+<script>
+/* Sproutly app wiring — DOM layer only, calls the pure lib above. */
+(function () {
+  'use strict';
+  var LS_KEY = 'sproutly-v3-plants';
+  var LS_VAC = 'sproutly-v3-vacation';
+  var LS_SEASON = 'sproutly-v3-season';
+
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function load(k, fb) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch (e) { return fb; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  var plants = load(LS_KEY, []);
+  var vacation = load(LS_VAC, null);
+  var seasonPref = load(LS_SEASON, 'auto');
+  var calCursor = todayISO().slice(0, 7);
+
+  function currentSeason() {
+    if (seasonPref !== 'auto') return seasonPref;
+    return sproutlySeasonForMonth(Number(todayISO().slice(5, 7)));
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* species dropdown */
+  var speciesSel = $('f-species');
+  Object.keys(SPROUTLY_SPECIES).forEach(function (s) {
+    var o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    speciesSel.appendChild(o);
+  });
+  speciesSel.value = 'Pothos';
+  $('f-last').value = todayISO();
+  $('f-season').value = seasonPref;
+  if (vacation) { $('v-from').value = vacation.from; $('v-to').value = vacation.to; $('v-sitter').checked = !!vacation.sitter; }
+
+  /* tabs */
+  var panes = { 'tab-dashboard': 'pane-dashboard', 'tab-calendar': 'pane-calendar', 'tab-vacation': 'pane-vacation', 'tab-settings': 'pane-settings' };
+  Object.keys(panes).forEach(function (tab) {
+    $(tab).addEventListener('click', function () {
+      Object.keys(panes).forEach(function (t) {
+        $(t).className = (t === tab ? 'tab-active' : 'tab-idle') + ' px-4 py-2 rounded-xl font-semibold text-sm';
+        $(panes[t]).classList.toggle('hidden', t !== tab);
+      });
+      if (tab === 'tab-calendar') renderCalendar();
+      if (tab === 'tab-vacation') renderVacation();
+    });
+  });
+
+  function plantInterval(p) {
+    return sproutlyComputeInterval(Object.assign({}, p, { season: currentSeason() }));
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  /* dashboard render */
+  function renderDashboard() {
+    var grid = $('plant-grid');
+    var season = currentSeason();
+    grid.innerHTML = '';
+    if (!plants.length) {
+      grid.innerHTML = '<div class="col-span-full text-center text-emerald-100/60 py-10">No plants yet — add your first plant above, or load the demo collection.</div>';
+    }
+    plants.forEach(function (p, i) {
+      var info = plantInterval(p);
+      var next = sproutlyAddDays(p.lastWateredISO, info.days);
+      var late = next ? sproutlyDiffDays(next, todayISO()) : 0;
+      var card = document.createElement('div');
+      card.className = 'glass rounded-xl p-4';
+      var statusChip = late > 0
+        ? '<span class="chip" style="background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.4);">overdue ' + late + 'd</span>'
+        : (late === 0
+          ? '<span class="chip" style="background:rgba(250,204,21,.12);color:#facc15;border:1px solid rgba(250,204,21,.35);">due today</span>'
+          : '<span class="chip" style="background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.35);">in ' + (-late) + 'd</span>');
+      card.innerHTML =
+        '<div class="flex items-start justify-between mb-2">' +
+          '<div><div class="font-bold text-lg text-emerald-50">' + esc(p.name) + '</div>' +
+          '<div class="text-xs text-emerald-100/60">' + esc(p.species) + ' · ' + esc(p.potMaterial) + ' · ' + esc(p.potSizeCm) + 'cm</div></div>' +
+          '<button class="text-red-400 text-xs" data-del="' + i + '">remove</button>' +
+        '</div>' +
+        '<div class="flex items-center gap-2 mb-2">' +
+          '<span class="text-3xl font-bold text-fern">' + info.days + 'd</span>' +
+          '<span class="text-xs text-emerald-100/60">between waterings<br>next: ' + esc(next) + '</span>' + statusChip +
+        '</div>' +
+        '<div class="flex gap-2">' +
+          '<button class="btn-fern px-3 py-1.5 text-sm flex-1" data-water="' + i + '">Mark watered</button>' +
+          '<button class="btn-ghost px-3 py-1.5 text-sm" data-formula="' + i + '">Why?</button>' +
+        '</div>';
+      grid.appendChild(card);
+    });
+    grid.querySelectorAll('[data-del]').forEach(function (b) {
+      b.addEventListener('click', function () { plants.splice(Number(b.getAttribute('data-del')), 1); save(LS_KEY, plants); renderAll(); });
+    });
+    grid.querySelectorAll('[data-water]').forEach(function (b) {
+      b.addEventListener('click', function () { plants[Number(b.getAttribute('data-water'))].lastWateredISO = todayISO(); save(LS_KEY, plants); renderAll(); });
+    });
+    grid.querySelectorAll('[data-formula]').forEach(function (b) {
+      b.addEventListener('click', function () { showFormula(plants[Number(b.getAttribute('data-formula'))]); });
+    });
+
+    /* due strip */
+    var due = sproutlyDueToday(plants, todayISO(), season);
+    var strip = $('due-strip');
+    if (due.length) {
+      strip.classList.remove('hidden');
+      $('due-list').innerHTML = due.map(function (d) {
+        return '<span class="chip" style="background:rgba(250,204,21,.12);color:#facc15;border:1px solid rgba(250,204,21,.35);">' +
+          esc(d.plant) + (d.overdueDays > 0 ? ' · ' + d.overdueDays + 'd overdue' : ' · today') + '</span>';
+      }).join('');
+    } else { strip.classList.add('hidden'); }
+  }
+
+  /* formula panel */
+  function showFormula(p) {
+    var info = plantInterval(p);
+    $('formula-panel').classList.remove('hidden');
+    $('formula-plant-name').textContent = p.name + ' — ' + p.species + ' (' + info.note + ')';
+    var html = info.steps.map(function (s, i) {
+      return '<div class="step-row pl-3 py-1 text-sm">' +
+        '<span class="text-emerald-100/80">' + (i + 1) + '. ' + esc(s.label) + '</span> ' +
+        '<span class="text-sun font-mono">× ' + s.factor + '</span> ' +
+        '<span class="text-emerald-100/50">→ ' + Math.round(s.subtotal * 10) / 10 + ' days</span></div>';
+    }).join('');
+    $('formula-steps').innerHTML = html +
+      '<div class="pl-3 py-1 text-sm font-bold">Final interval: <span class="text-fern text-lg">' + info.days + ' days</span></div>';
+    $('formula-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /* calendar */
+  function renderCalendar() {
+    var res = sproutlyMonthCalendar(plants, calCursor, { season: currentSeason(), vacation: vacation });
+    var ym = calCursor.split('-');
+    var names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    $('cal-title').textContent = names[Number(ym[1]) - 1] + ' ' + ym[0] + ' · ' + sproutlySeasonForMonth(Number(ym[1])) + ' rates';
+    var grid = $('cal-grid');
+    grid.innerHTML = '';
+    var t = todayISO();
+    res.cells.forEach(function (c) {
+      var evs = res.events[c.iso] || [];
+      var dots = '';
+      var waters = evs.filter(function (e) { return e.type === 'water'; });
+      var ferts = evs.filter(function (e) { return e.type === 'fertilize'; });
+      var repots = evs.filter(function (e) { return e.type === 'repot'; });
+      waters.slice(0, 3).forEach(function (e) {
+        dots += '<span title="' + esc(e.plant) + ' — water' + (e.vacation ? (e.sitter ? ' (sitter!)' : ' (no sitter!)') : '') + '" class="inline-block w-2.5 h-2.5 rounded-full mr-0.5 ' + (e.vacation && !e.sitter ? 'bg-red-400' : 'bg-fern') + '"></span>';
+      });
+      ferts.slice(0, 2).forEach(function () { dots += '<span title="fertilize" class="inline-block w-2.5 h-2.5 rounded-full mr-0.5 bg-sun"></span>'; });
+      repots.forEach(function () { dots += '<span title="repot" class="inline-block w-2.5 h-2.5 rounded-full mr-0.5 bg-red-400"></span>'; });
+      var vac = waters.some(function (e) { return e.vacation; });
+      var cell = document.createElement('button');
+      cell.className = 'cal-cell rounded-lg text-left p-1.5 align-top ' +
+        (c.inMonth ? 'glass' : 'opacity-35') + (c.iso === t ? ' ring-2 ring-[#facc15]' : '');
+      cell.innerHTML = '<div class="text-xs font-bold ' + (c.inMonth ? 'text-emerald-50' : 'text-emerald-100/50') + '">' +
+        Number(c.iso.slice(8, 10)) + (vac ? ' ✈️' : '') + '</div><div class="mt-1">' + dots + '</div>';
+      cell.addEventListener('click', function () { showDayDetail(c.iso, evs); });
+      grid.appendChild(cell);
+    });
+  }
+  function showDayDetail(iso, evs) {
+    var box = $('cal-day-detail');
+    if (!evs.length) { box.innerHTML = '<div class="glass rounded-xl p-3 text-sm text-emerald-100/60">' + esc(iso) + ' — nothing scheduled. Enjoy the day off.</div>'; return; }
+    var labels = { water: '💧 Water', fertilize: '🌱 Fertilize', repot: '🪴 Repot' };
+    box.innerHTML = '<div class="glass rounded-xl p-3 text-sm"><div class="font-bold mb-2 text-fern">' + esc(iso) + '</div>' +
+      evs.map(function (e) {
+        var extra = e.vacation ? (e.sitter ? ' <span class="chip" style="background:rgba(74,222,128,.12);color:#4ade80;">✈️ sitter flagged</span>' : ' <span class="chip" style="background:rgba(248,113,113,.15);color:#f87171;">✈️ NO SITTER</span>') : '';
+        return '<div class="py-1">' + (labels[e.type] || e.type) + ' — <b>' + esc(e.plant) + '</b>' + extra + '</div>';
+      }).join('') + '</div>';
+  }
+  $('cal-prev').addEventListener('click', function () {
+    var y = Number(calCursor.slice(0, 4)), m = Number(calCursor.slice(5, 7)) - 1;
+    if (m < 1) { m = 12; y--; }
+    calCursor = y + '-' + String(m).padStart(2, '0');
+    renderCalendar();
+  });
+  $('cal-next').addEventListener('click', function () {
+    var y = Number(calCursor.slice(0, 4)), m = Number(calCursor.slice(5, 7)) + 1;
+    if (m > 12) { m = 1; y++; }
+    calCursor = y + '-' + String(m).padStart(2, '0');
+    renderCalendar();
+  });
+
+  /* vacation */
+  function renderVacation() {
+    var box = $('vacation-result');
+    if (!vacation || !vacation.from || !vacation.to) {
+      box.innerHTML = '<p class="text-sm text-emerald-100/60">Set your trip dates above. Sproutly will list every watering that falls inside the trip and flag whether a sitter is needed.</p>';
+      return;
+    }
+    var checks = sproutlyVacationCheck(plants, vacation, currentSeason());
+    var sitter = !!vacation.sitter;
+    box.innerHTML = '<div class="glass rounded-xl p-4 mb-3 text-sm">Trip: <b class="text-fern">' + esc(vacation.from) + ' → ' + esc(vacation.to) + '</b> · sitter: ' +
+      (sitter ? '<span class="text-fern font-bold">yes</span>' : '<span class="text-red-400 font-bold">no</span>') + '</div>' +
+      checks.map(function (c) {
+        if (!c.datesDuringTrip.length) {
+          return '<div class="glass rounded-xl p-3 text-sm"><b>' + esc(c.plant) + '</b> — safe, no watering needed during the trip (every ' + c.intervalDays + 'd).</div>';
+        }
+        return '<div class="rounded-xl p-3 text-sm" style="background:' + (sitter ? 'rgba(74,222,128,.07)' : 'rgba(248,113,113,.07)') + ';border:1px solid ' + (sitter ? 'rgba(74,222,128,.35)' : 'rgba(248,113,113,.4)') + ';">' +
+          '<b>' + esc(c.plant) + '</b> needs water on: <b>' + c.datesDuringTrip.map(esc).join(', ') + '</b>' +
+          (sitter ? '<div class="text-fern text-xs mt-1">✈️ Flagged for your sitter.</div>' : '<div class="text-red-400 text-xs mt-1">⚠️ No sitter — consider self-watering spikes or moving it to shade.</div>') + '</div>';
+      }).join('');
+  }
+  $('v-from').addEventListener('change', saveVacation);
+  $('v-to').addEventListener('change', saveVacation);
+  $('v-sitter').addEventListener('change', saveVacation);
+  function saveVacation() {
+    var f = $('v-from').value, t2 = $('v-to').value;
+    vacation = (f && t2) ? { from: f, to: t2, sitter: $('v-sitter').checked } : null;
+    save(LS_VAC, vacation);
+    renderVacation();
+  }
+  $('btn-vacation-clear').addEventListener('click', function () {
+    vacation = null; save(LS_VAC, null);
+    $('v-from').value = ''; $('v-to').value = ''; $('v-sitter').checked = false;
+    renderVacation();
+  });
+
+  /* season */
+  $('f-season').addEventListener('change', function () {
+    seasonPref = $('f-season').value; save(LS_SEASON, seasonPref); renderAll();
+  });
+
+  /* add plant */
+  $('btn-add').addEventListener('click', function () {
+    var name = $('f-name').value.trim();
+    if (!name) { $('f-name').focus(); $('f-name').style.borderColor = '#f87171'; return; }
+    plants.push({
+      name: name,
+      species: speciesSel.value,
+      potMaterial: $('f-potmaterial').value,
+      potSizeCm: Number($('f-potsize').value) || 15,
+      light: $('f-light').value,
+      humidity: $('f-humidity').value,
+      lastWateredISO: $('f-last').value || todayISO()
+    });
+    $('f-name').value = ''; $('f-name').style.borderColor = '';
+    save(LS_KEY, plants);
+    renderAll();
+  });
+  $('btn-demo').addEventListener('click', function () {
+    plants = [
+      { name: 'Fernie', species: 'Boston Fern', potMaterial: 'plastic', potSizeCm: 18, light: 'medium', humidity: 'humid', lastWateredISO: sproutlyAddDays(todayISO(), -2) },
+      { name: 'Snakey', species: 'Snake Plant', potMaterial: 'terracotta', potSizeCm: 20, light: 'low', humidity: 'dry', lastWateredISO: sproutlyAddDays(todayISO(), -10) },
+      { name: 'Monsty', species: 'Monstera', potMaterial: 'ceramic', potSizeCm: 25, light: 'direct', humidity: 'normal', lastWateredISO: sproutlyAddDays(todayISO(), -5) },
+      { name: 'Prickles', species: 'Cactus', potMaterial: 'terracotta', potSizeCm: 12, light: 'direct', humidity: 'dry', lastWateredISO: sproutlyAddDays(todayISO(), -18) }
+    ];
+    save(LS_KEY, plants);
+    renderAll();
+  });
+
+  function renderAll() { renderDashboard(); renderVacation(); }
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
